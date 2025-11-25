@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Driver Drowsiness Dashboard — Real-time</title>
+
+  <style>
+/* -------------------------
+   GLOBAL
+--------------------------*/
+body {
+  margin: 0;
+  padding: 0;
+  font-family: "Inter", "Segoe UI", Arial, sans-serif;
+  background: linear-gradient(135deg, #0f172a, #1e293b);
+  color: #e2e8f0;
+}
+
+h1 {
+  margin: 20px;
+  font-size: 26px;
+  font-weight: 700;
+  text-align: center;
+  color: #38bdf8;
+  text-shadow: 0 0 10px rgba(56,189,248,0.5);
+}
+
+/* -------------------------
+   MAIN LAYOUT
+--------------------------*/
+.container {
+  width: 95%;
+  margin: 0 auto;
+  padding-bottom: 40px;
+  display: flex;
+  justify-content: center;
+  gap: 25px;
+  flex-wrap: wrap;
+}
+
+/* -------------------------
+   VIDEO STREAM BOX
+--------------------------*/
+.video {
+  border-radius: 14px;
+  background: #0f172a;
+  border: 2px solid #1e293b;
+  overflow: hidden;
+  box-shadow: 0 0 25px rgba(0,0,0,0.4);
+  transition: 0.3s ease;
+}
+
+.video img {
+  display: block;
+  width: 720px;
+  max-width: 95vw;
+}
+
+/* Glow when alarm is active */
+.alarm-glow {
+  box-shadow: 0 0 35px rgba(255,0,0,0.9), 0 0 80px rgba(255,0,0,0.6);
+  border-color: #f87171 !important;
+}
+
+/* -------------------------
+   SIDE PANEL CARD
+--------------------------*/
+.panel {
+  width: 360px;
+  padding: 18px;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.05);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+  border: 1px solid rgba(255,255,255,0.08);
+  transition: 0.3s;
+}
+
+.panel:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 15px 45px rgba(0,0,0,0.4);
+}
+
+.panel h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+  color: #93c5fd;
+}
+
+/* -------------------------
+   STATUS INDICATOR
+--------------------------*/
+.status-box {
+  margin-top: 12px;
+  padding: 12px;
+  font-size: 20px;
+  border-radius: 12px;
+  text-align: center;
+  font-weight: 600;
+  letter-spacing: 1px;
+  transition: 0.3s;
+}
+
+/* OK state */
+.status-ok {
+  background: rgba(34,197,94,0.2);
+  border: 1px solid rgba(34,197,94,0.4);
+  color: #4ade80;
+}
+
+/* Alarm red flashing effect */
+@keyframes flash {
+  0% { background: rgba(239,68,68,0.3); }
+  50% { background: rgba(239,68,68,0.7); }
+  100% { background: rgba(239,68,68,0.3); }
+}
+
+/* Alarm state */
+.status-alarm {
+  border: 1px solid rgba(239,68,68,0.8);
+  color: #fca5a5;
+  animation: flash 1s infinite;
+}
+
+/* -------------------------
+   SMALL TEXT
+--------------------------*/
+.small {
+  font-size: 14px;
+  margin: 5px 0;
+  color: #cbd5e1;
+}
+
+/* -------------------------
+   SNAPSHOTS
+--------------------------*/
+.snap {
+  width: 100%;
+  border-radius: 12px;
+  margin-top: 10px;
+  transition: 0.2s;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.snap:hover {
+  transform: scale(1.02);
+  box-shadow: 0 0 20px rgba(255,255,255,0.1);
+}
+
+/* -------------------------
+   BUTTONS
+--------------------------*/
+button {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #fff;
+  border: none;
+  padding: 9px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  transition: 0.2s;
+}
+
+button:hover {
+  background: linear-gradient(135deg, #1e40af, #1e3a8a);
+  transform: translateY(-2px);
+  box-shadow: 0 0 15px rgba(59,130,246,0.5);
+}
+
+/* links */
+a {
+  color: #60a5fa;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Responsive tweaks */
+@media (max-width: 900px) {
+  .container { flex-direction: column; align-items: center; }
+  .panel { width: 95%; max-width: 420px; }
+  .video img { width: 95vw; }
+}
+  </style>
+</head>
+<body>
+  <h1>Driver Drowsiness Dashboard — Real-time</h1>
+
+  <div class="container">
+    <div id="videoBox" class="video">
+      <img id="video" src="/video_feed" alt="Live stream" />
+    </div>
+
+    <div class="panel">
+      <h2>Status</h2>
+      <div id="statusBox" class="status-box status-ok">Loading...</div>
+
+      <div class="small">EAR: <span id="ear">-</span></div>
+      <div class="small">MAR: <span id="mar">-</span></div>
+      <div class="small">Model Prob: <span id="mprob">-</span></div>
+      <div class="small">Last update: <span id="ts">-</span></div>
+
+      <hr style="border:none;border-top:1px solid rgba(255,255,255,0.06);margin:12px 0" />
+
+      <h2>Snapshots</h2>
+      <div id="snaps" style="min-height:120px">Loading...</div>
+
+      <hr style="border:none;border-top:1px solid rgba(255,255,255,0.06);margin:12px 0" />
+
+      <h2>Logs</h2>
+      <button onclick="downloadLogs()">Download Logs</button>
+      <a id="logslink" href="/logs" target="_blank" style="margin-left:10px">Open Logs</a>
+    </div>
+  </div>
+
+  <!-- audio element for alarm sound -->
+  <audio id="alarmAudio" src="/alarm_sound" preload="auto"></audio>
+
+  <!-- Socket.IO client -->
+  <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+
+  <script>
+/*
+  Complete dashboard JS
+  - Connects to Socket.IO namespace /alerts
+  - Updates UI (status box, EAR, MAR, model prob, timestamp)
+  - Adds alarm glow and plays alarmAudio element
+  - Loads latest snapshots periodically
+  - Provides Download Logs button behavior
+*/
+
+(function() {
+  // ensure DOM ready
+  function $(id) { return document.getElementById(id); }
+
+  // Socket.IO connect
+  const socket = io('/alerts');
+
+  socket.on('connect', () => {
+    console.log('Socket connected');
+  });
+
+  socket.on('disconnect', () => {
+    console.log('Socket disconnected');
+  });
+
+  // Main status update handler
+  socket.on('status', (data) => {
+    try {
+      const statusBox = $('statusBox');
+      const videoBox = $('videoBox');
+
+      // numeric display
+      $('ear').innerText = (data.ear !== null && data.ear !== undefined) ? Number(data.ear).toFixed(3) : '-';
+      $('mar').innerText = (data.mar !== null && data.mar !== undefined) ? Number(data.mar).toFixed(3) : '-';
+      $('mprob').innerText = (data.model_prob !== null && data.model_prob !== undefined) ? Number(data.model_prob).toFixed(3) : '-';
+      $('ts').innerText = data.timestamp || '-';
+
+      // Alarm state UI
+      if (data.alarm) {
+        statusBox.innerText = "ALARM: " + (data.type || '');
+        statusBox.classList.remove('status-ok');
+        statusBox.classList.add('status-alarm');
+
+        // add glow to video
+        videoBox.classList.add('alarm-glow');
+
+        // play alarm audio (browsers may block until user interacts)
+        const audio = $('alarmAudio');
+        if (audio) {
+          audio.currentTime = 0;
+          audio.play().catch(err => {
+            // autoplay blocked — console log; user can click to allow audio later
+            console.log('Audio play blocked (user gesture required):', err);
+          });
+        }
+      } else {
+        statusBox.innerText = "OK";
+        statusBox.classList.remove('status-alarm');
+        statusBox.classList.add('status-ok');
+
+        videoBox.classList.remove('alarm-glow');
+      }
+    } catch (e) {
+      console.error('Error handling status event', e);
+    }
+  });
+
+  // Snapshots list loader
+  async function refreshSnaps() {
+    try {
+      const res = await fetch('/snapshots');
+      if (!res.ok) throw new Error('Failed to fetch snapshots');
+      const arr = await res.json();
+      const div = $('snaps');
+      if (!arr || arr.length === 0) {
+        div.innerText = 'No snapshots yet.';
+        return;
+      }
+      div.innerHTML = '';
+      // show up to 6 latest
+      arr.slice(0, 6).forEach(name => {
+        const a = document.createElement('a');
+        a.href = '/snapshots/' + encodeURIComponent(name);
+        a.target = '_blank';
+        a.rel = 'noopener';
+        const img = document.createElement('img');
+        img.src = '/snapshots/' + encodeURIComponent(name);
+        img.className = 'snap';
+        a.appendChild(img);
+        div.appendChild(a);
+      });
+    } catch (err) {
+      console.log('refreshSnaps err', err);
+    }
+  }
+
+  // Download logs (opens /logs endpoint)
+  function downloadLogs() {
+    window.open('/logs', '_blank');
+  }
+  // wire download button if exists
+  const dlBtn = document.querySelector('button[onclick="downloadLogs()"]');
+  if (dlBtn) dlBtn.addEventListener('click', downloadLogs);
+
+  // Add a one-time click handler to enable audio autoplay after a user gesture
+  function enableAudioOnGesture() {
+    const audio = $('alarmAudio');
+    if (!audio) return;
+    function unlock() {
+      audio.play().then(()=> {
+        audio.pause();
+        audio.currentTime = 0;
+      }).catch(()=>{ /* ignore */ });
+      // remove listeners after first gesture
+      window.removeEventListener('click', unlock);
+      window.removeEventListener('keydown', unlock);
+    }
+    window.addEventListener('click', unlock);
+    window.addEventListener('keydown', unlock);
+  }
+  enableAudioOnGesture();
+
+  // initial loads
+  refreshSnaps();
+  // refresh snapshots every 5s
+  setInterval(refreshSnaps, 5000);
+
+  // expose downloadLogs to inline onclick (keeps compatibility)
+  window.downloadLogs = downloadLogs;
+
+})();
+  </script>
+</body>
+</html>
